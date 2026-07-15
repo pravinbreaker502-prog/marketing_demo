@@ -9,7 +9,7 @@ return new class extends Migration
     public function up()
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->increments('id'); // Auto-incrementing unsigned integer primary key
+            $table->increments('id'); // Auto-incrementing unsigned integer primary key 1
             $table->integer('user_id'); // User ID
             $table->string('username', 255); // Username with maximum length of 255 characters
             $table->string('password', 255); // Password with maximum length of 255 characters

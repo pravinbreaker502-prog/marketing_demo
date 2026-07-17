@@ -1,42 +1,138 @@
 services:
 
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  init-app:
+    image: pravin2010/marketing-demo:latest
+    container_name: marketing_init
+  
+    command: >
+      sh -c "
+        cp -a /opt/application/. /var/www/html &&
+        chown -R www-data:www-data /var/www/html
+      "
+  
+    volumes:
+      - app_code:/var/www/html
+  
+    restart: no
 
-    restart: always
+  app:
+    image: pravin2010/marketing-demo:latest
+    container_name: marketing_app
+
+    restart: unless-stopped
+
+    working_dir: /var/www/html
+
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+
+    volumes:
+      - app_code:/var/www/html
+
+    depends_on:
+      init-app:
+        condition: service_completed_successfully
+      mysql:
+        condition: service_started
+      redis:
+        condition: service_started
 
   nginx:
     image: nginx:latest
 
-    restart: always
+    container_name: marketing_nginx
+
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+
+    volumes:
+      - app_code:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+    depends_on:
+      app:
+        condition: service_started
+
+  mysql:
+    image: mysql:8.4
+
+    container_name: marketing_mysql
+
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+
+    volumes:
+      - mysql_data:/var/lib/mysql
 
   redis:
     image: redis:7-alpine
 
-    restart: always
+    container_name: marketing_redis
 
-  horizon:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    restart: unless-stopped
 
-    command:
-      - php
-      - artisan
-      - horizon
-
-    restart: always
+    volumes:
+      - redis_data:/data
 
   scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: pravin2010/marketing-demo:latest
+
+    container_name: marketing_scheduler
+
+    working_dir: /var/www/html
 
     command:
       - php
       - artisan
       - schedule:work
 
-    restart: always
+    restart: unless-stopped
+
+    volumes:
+      - app_code:/var/www/html
+
+    depends_on:
+      init-app:
+        condition: service_completed_successfully
+      mysql:
+        condition: service_started
+      redis:
+        condition: service_started
+
+  horizon:
+    image: pravin2010/marketing-demo:latest
+
+    container_name: marketing_horizon
+
+    working_dir: /var/www/html
+
+    command:
+      - php
+      - artisan
+      - horizon
+
+    restart: unless-stopped
+
+    volumes:
+      - app_code:/var/www/html
+
+    depends_on:
+      init-app:
+        condition: service_completed_successfully
+      mysql:
+        condition: service_started
+      redis:
+        condition: service_started
+
+volumes:
+  app_code:
+  mysql_data:
+  redis_data:

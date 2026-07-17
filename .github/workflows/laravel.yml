@@ -47,11 +47,11 @@ jobs:
       - name: Generate Application Key
         run: docker compose -f docker-compose.ci.yml exec -T app php artisan key:generate
 
-      - name: Clear Config
-        run: docker compose -f docker-compose.ci.yml exec -T app php artisan optimize:clear
-
       - name: Run Migrations
         run: docker compose -f docker-compose.ci.yml exec -T app php artisan migrate --force
+      
+      - name: Clear Config
+        run: docker compose -f docker-compose.ci.yml exec -T app php artisan optimize:clear
 
       - name: Run Tests
         run: docker compose -f docker-compose.ci.yml exec -T app php artisan test

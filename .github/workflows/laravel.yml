@@ -1,0 +1,65 @@
+name: Laravel CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  laravel-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Copy .env
+        run: cp .env.example .env
+
+      - name: Configure Environment
+        run: |
+          sed -i 's/^DB_HOST=.*/DB_HOST=mysql/' .env
+          sed -i 's/^DB_DATABASE=.*/DB_DATABASE=marketing_demo/' .env
+          sed -i 's/^DB_USERNAME=.*/DB_USERNAME=root/' .env
+          sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=root/' .env
+          sed -i 's/^REDIS_HOST=.*/REDIS_HOST=redis/' .env
+
+      - name: Build Containers
+        run: docker compose -f docker-compose.ci.yml up -d --build
+
+      - name: Wait for MySQL
+        run: |
+          until docker compose -f docker-compose.ci.yml exec -T mysql mysqladmin ping -h localhost -proot --silent
+          do
+            echo "Waiting for MySQL..."
+            sleep 2
+          done
+
+      - name: Install Composer Dependencies
+        run: docker compose -f docker-compose.ci.yml exec -T app composer install --no-interaction --prefer-dist
+
+      - name: Generate Application Key
+        run: docker compose -f docker-compose.ci.yml exec -T app php artisan key:generate
+
+      - name: Clear Config
+        run: docker compose -f docker-compose.ci.yml exec -T app php artisan optimize:clear
+
+      - name: Run Migrations
+        run: docker compose -f docker-compose.ci.yml exec -T app php artisan migrate --force
+
+      - name: Run Tests
+        run: docker compose -f docker-compose.ci.yml exec -T app php artisan test
+
+      - name: Show Logs if Failed
+        if: failure()
+        run: docker compose -f docker-compose.ci.yml logs
+
+      - name: Stop Containers
+        if: always()
+        run: docker compose -f docker-compose.ci.yml down -v

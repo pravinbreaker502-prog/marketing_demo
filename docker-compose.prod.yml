@@ -1,0 +1,42 @@
+services:
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    restart: always
+
+  nginx:
+    image: nginx:latest
+
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+
+    restart: always
+
+  horizon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    command:
+      - php
+      - artisan
+      - horizon
+
+    restart: always
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    command:
+      - php
+      - artisan
+      - schedule:work
+
+    restart: always

@@ -46,7 +46,7 @@ WORKDIR /var/www/html
 #     --no-interaction \
 #     --optimize-autoloader
 
-COPY composer.json composer.lock ./
+COPY . .
 
 RUN composer install \
     --no-dev \

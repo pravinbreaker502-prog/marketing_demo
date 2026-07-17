@@ -27,14 +27,25 @@ RUN apt-get update && apt-get install -y \
         gd \
         zip
 
+# Redis Extension
 RUN pecl install redis \
     && docker-php-ext-enable redis
 
+# Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Better Docker cache
+# Copy only composer files first (better cache)
+# COPY composer.json composer.lock ./
+
+# # Install PHP dependencies
+# RUN composer install \
+#     --no-dev \
+#     --prefer-dist \
+#     --no-interaction \
+#     --optimize-autoloader
+
 COPY composer.json composer.lock ./
 
 RUN composer install \
@@ -43,22 +54,17 @@ RUN composer install \
     --no-interaction \
     --optimize-autoloader
 
-# Copy application
+# Copy project
 COPY . .
 
+# Optimize autoloader
 RUN composer dump-autoload \
     --optimize \
     --no-dev
 
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/custom.ini
 
-RUN mkdir -p storage bootstrap/cache
-
-RUN chown -R www-data:www-data storage bootstrap/cache
-
-# Store a pristine copy of the application
-RUN mkdir -p /opt/application \
-    && cp -a /var/www/html/. /opt/application/
+RUN chown -R www-data:www-data storage bootstrap/cache || true
 
 EXPOSE 9000
 
